@@ -9,9 +9,9 @@ import {
   getMySubmissions,
   getAssignmentSubmissions,
   getUserAttemptResult,
-  deleteAssignment,
-
+  deleteAssignment
 } from "../controllers/assignmentController.js"
+
 // Middleware xác thực
 import { authMiddleware } from "../middleware/authMiddleware.js"
 // Middleware xử lý upload
@@ -40,4 +40,5 @@ router.post("/submit", authMiddleware, submitAssignment)
 router.get("/:id/result/:attemptId", authMiddleware, getUserAttemptResult)
 // Xoá bài tập (chỉ giáo viên / người tạo)
 router.delete("/:id", authMiddleware, deleteAssignment)
+
 export default router

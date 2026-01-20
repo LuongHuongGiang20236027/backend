@@ -285,7 +285,6 @@ class Assignment {
     return attempt
   }
 
-
   // Xoá bài tập (PostgreSQL + transaction)
   static async deleteById(id) {
     const client = await pool.connect()
@@ -333,6 +332,7 @@ class Assignment {
       client.release()
     }
   }
+
 
 }
 

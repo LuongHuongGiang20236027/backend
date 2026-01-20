@@ -104,8 +104,21 @@ export const submitAssignment = async (req, res) => {
       answers_json: JSON.stringify(answers)
     })
 
-    // Trả về kết quả
-    return res.json({ submission: attempt, score: attempt.score, total_questions: answers.length })
+    // 🔥 Lấy tổng điểm chuẩn từ DB
+    const assignment = await Assignment.findById(assignment_id)
+
+    const total_score =
+      assignment?.questions?.reduce(
+        (sum, q) => sum + Number(q.score || 0),
+        0
+      ) || 0
+
+    // 🔥 Trả format chuẩn cho FE
+    return res.json({
+      score: Number(attempt.score || 0),
+      total_score,
+      submission: attempt,
+    })
   } catch (error) {
     console.error("Submit assignment error:", error)
     return res.status(500).json({ error: "Internal server error" })

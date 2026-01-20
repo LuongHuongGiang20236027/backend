@@ -8,8 +8,9 @@ export const updateProfile = async (req, res) => {
     const { name, gender, birth_date } = req.body
     // Xử lý avatar nếu có
     const avatar = req.file
-      ? `http://localhost:8000/uploads/avatars/${req.file.filename}`
+      ? `${req.protocol}://${req.get("host")}/uploads/avatars/${req.file.filename}`
       : undefined
+
     // Cập nhật thông tin user
     const updatedUser = await User.update(req.userId, {
       name,

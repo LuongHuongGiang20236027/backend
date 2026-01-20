@@ -1,2 +1,14 @@
-node_modules/
+# env
 .env
+.env.production
+
+# dependencies
+node_modules/
+
+# uploads
+uploads/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

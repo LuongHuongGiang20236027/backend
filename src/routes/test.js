@@ -3,7 +3,7 @@ import { Router } from "express";
 import { pool } from "../config/database.js";
 
 const router = Router();
-
+// Route để kiểm tra kết nối DB
 router.get("/test-db", async (req, res) => {
     try {
         const result = await pool.query("SELECT NOW()");

@@ -1,6 +1,8 @@
 import { pool } from "../config/database.js";
 
 class Document {
+
+  // Lấy tất cả documents
   static async findAll() {
     const result = await pool.query(
       `SELECT d.*, u.name AS author_name,
@@ -12,6 +14,7 @@ class Document {
     return result.rows;
   }
 
+  // Lấy document theo id
   static async findById(id) {
     const result = await pool.query(
       `SELECT d.*, u.name AS author_name,
@@ -24,6 +27,7 @@ class Document {
     return result.rows[0] || null;
   }
 
+  // Lấy document theo người tạo
   static async findByCreator(createdBy) {
     const result = await pool.query(
       `SELECT d.*, u.name AS author_name,
@@ -35,12 +39,11 @@ class Document {
       [createdBy]
     );
 
-    // ✅ TRẢ VỀ ARRAY
+    // Trả về mảng document
     return result.rows;
   }
 
-
-
+  // Tạo document mới
   static async create(data) {
     const { title, description, file_url, thumbnail, created_by } = data;
     const result = await pool.query(
@@ -52,31 +55,39 @@ class Document {
     return result.rows[0];
   }
 
+  // Xoá document
   static async delete(id) {
     await pool.query(`DELETE FROM documents WHERE id = $1`, [id]);
   }
 
+  // Thích / bỏ thích tài liệu
   static async toggleLike(documentId, userId) {
+    // Kiểm tra đã thích chưa
     const check = await pool.query(
       `SELECT id FROM document_likes WHERE document_id = $1 AND user_id = $2`,
       [documentId, userId]
     );
 
+    // Nếu đã thích thì bỏ thích
     if (check.rowCount > 0) {
       await pool.query(
         `DELETE FROM document_likes WHERE document_id = $1 AND user_id = $2`,
         [documentId, userId]
       );
+      // Trả về false là đã bỏ thích
       return false;
     } else {
+      // Chưa thích thì thêm thích
       await pool.query(
         `INSERT INTO document_likes (document_id, user_id) VALUES ($1, $2)`,
         [documentId, userId]
       );
+      // Trả về true là đã thích
       return true;
     }
   }
 
+  // Kiểm tra user đã thích tài liệu chưa
   static async isLikedByUser(documentId, userId) {
     const result = await pool.query(
       `SELECT 1
@@ -88,6 +99,7 @@ class Document {
     return result.rowCount > 0
   }
 
+  // Lấy danh sách tài liệu đã thích của user
   static async findLikedByUser(userId) {
     const result = await pool.query(
       `SELECT d.*, u.name AS author_name,

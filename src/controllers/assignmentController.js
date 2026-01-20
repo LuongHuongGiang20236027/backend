@@ -1,8 +1,9 @@
 import Assignment from "../models/Assignment.js"
 
-// Lấy tất cả bài tập (học sinh)
+// Lấy tất cả bài tập
 export const getAllAssignments = async (req, res) => {
   try {
+    // Lấy tất cả bài tập
     const assignments = await Assignment.findAll()
     res.json({ assignments })
   } catch (error) {
@@ -11,12 +12,12 @@ export const getAllAssignments = async (req, res) => {
   }
 }
 
-// Lấy bài tập theo id (học sinh)
+// Lấy bài tập theo id
 export const getAssignmentById = async (req, res) => {
   try {
     const { id } = req.params
     const assignment = await Assignment.findById(id)
-
+    // Nếu không tìm thấy
     if (!assignment) {
       return res.status(404).json({ error: "Assignment not found" })
     }
@@ -28,7 +29,7 @@ export const getAssignmentById = async (req, res) => {
   }
 }
 
-// Lấy bài tập của giáo viên (có is_correct)
+// Lấy bài tập của giáo viên hiện tại
 export const getMyAssignments = async (req, res) => {
   try {
     const assignments = await Assignment.findByCreator(req.userId)
@@ -39,11 +40,12 @@ export const getMyAssignments = async (req, res) => {
   }
 }
 
+// Tạo bài tập mới
 export const createAssignment = async (req, res) => {
   try {
     let { title, description, total_score, questions } = req.body
 
-    // 🔥 parse questions
+    // Nếu questions là chuỗi JSON, parse nó
     if (typeof questions === "string") {
       questions = JSON.parse(questions)
     }
@@ -52,11 +54,12 @@ export const createAssignment = async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" })
     }
 
-    // 🔥 lấy thumbnail đúng cách
+    // Xử lý thumbnail nếu có
     const thumbnail = req.file
       ? `/uploads/documents/thumbnails/${req.file.filename}`
       : null
 
+    // Tạo bài tập
     const assignment = await Assignment.create({
       title,
       description,
@@ -65,6 +68,7 @@ export const createAssignment = async (req, res) => {
       created_by: req.userId,
     })
 
+    // Tạo câu hỏi và đáp án
     for (let q of questions) {
       await Assignment.createQuestionWithAnswers({
         assignment_id: assignment.id,
@@ -82,24 +86,25 @@ export const createAssignment = async (req, res) => {
   }
 }
 
-// Submit bài tập
+// Nộp bài tập
 export const submitAssignment = async (req, res) => {
   try {
     const user_id = req.userId // lấy từ authMiddleware
     const { assignment_id, answers } = req.body // answers: [{ question_id, answer_id: [...] }]
 
+    // Kiểm tra dữ liệu
     if (!assignment_id || !answers) {
       return res.status(400).json({ error: "Missing required fields" })
     }
 
-    // Gọi model để submit
+    // Lưu bài nộp
     const attempt = await Assignment.submitAssignment({
       assignment_id,
       user_id,
       answers_json: JSON.stringify(answers)
     })
 
-    // Tính score tổng (model đã tính)
+    // Trả về kết quả
     return res.json({ submission: attempt, score: attempt.score, total_questions: answers.length })
   } catch (error) {
     console.error("Submit assignment error:", error)
@@ -107,7 +112,7 @@ export const submitAssignment = async (req, res) => {
   }
 }
 
-// Lấy tất cả bài nộp của học sinh
+// Lấy tất cả bài nộp của user hiện tại
 export const getMySubmissions = async (req, res) => {
   try {
     const submissions = await Assignment.getUserSubmissions(req.userId)
@@ -118,7 +123,7 @@ export const getMySubmissions = async (req, res) => {
   }
 }
 
-// Lấy tất cả bài nộp cho một bài tập
+// Lấy tất cả bài nộp cho một bài tập (giáo viên)
 export const getAssignmentSubmissions = async (req, res) => {
   try {
     const { id } = req.params
@@ -130,19 +135,64 @@ export const getAssignmentSubmissions = async (req, res) => {
   }
 }
 
-// Lấy bài tập theo id cho học sinh (không show is_correct)
-export const getAssignmentByIdForStudent = async (req, res) => {
+export const getUserAttemptResult = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id: assignmentId, attemptId } = req.params
+    const userId = req.userId
 
-    const assignment = await Assignment.findByIdForStudent(id);
-    if (!assignment) {
-      return res.status(404).json({ error: "Assignment not found" });
-    }
+    if (!assignmentId || !attemptId)
+      return res.status(400).json({ error: "assignmentId và attemptId là bắt buộc" })
 
-    res.json({ assignment });
+    const attempt = await Assignment.getSingleUserAttempt({
+      assignmentId: Number(assignmentId),
+      userId: Number(userId),
+      attemptId: Number(attemptId),
+    })
+
+    if (!attempt) return res.status(404).json({ error: "Attempt không tồn tại" })
+
+    res.json({ attempt })
   } catch (error) {
-    console.error("Get assignment for student error:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Get user attempt result error:", error)
+    res.status(500).json({ error: "Internal server error" })
   }
 }
+
+// Xoá bài tập
+export const deleteAssignment = async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    const userId = Number(req.userId)
+    const userRole = req.userRole
+
+    if (!id) {
+      return res.status(400).json({ error: "Invalid assignment id" })
+    }
+
+    const assignment = await Assignment.findById(id)
+    if (!assignment) {
+      return res.status(404).json({ error: "Assignment not found" })
+    }
+
+    // Chỉ admin hoặc người tạo mới được xoá
+    if (Number(assignment.created_by) !== userId && userRole !== "admin") {
+      return res.status(403).json({ error: "Forbidden" })
+    }
+
+    const deletedCount = await Assignment.deleteById(id)
+
+    if (!deletedCount) {
+      return res.status(404).json({ error: "Assignment not found" })
+    }
+
+    res.json({ message: "Assignment deleted successfully" })
+  } catch (error) {
+    console.error("Delete assignment error:", error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+
+
+
+
+

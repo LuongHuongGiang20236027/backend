@@ -10,21 +10,22 @@ import {
   downloadDocument,
 } from "../controllers/documentController.js"
 
-import { authMiddleware, optionalAuthMiddleware } from "../middleware/authMiddleware.js"
+// Middleware xác thực
+import { authMiddleware } from "../middleware/authMiddleware.js"
+// Middleware xử lý upload
 import { upload } from "../middleware/uploadMiddleware.js"
+import { optionalAuth } from "../middleware/optionalAuth.js"
 
 const router = express.Router()
-
+// Lấy tất cả tài liệu
 router.get("/", getAllDocuments)
+// Lấy tài liệu của giáo viên hiện tại
 router.get("/my-documents", authMiddleware, getMyDocuments)
+// Lấy tài liệu đã thích của user
 router.get("/liked", authMiddleware, getLikedDocuments)
-router.get("/:id", optionalAuthMiddleware, getDocumentById)
-
-/**
- * ✅ CHỈ GIÁO VIÊN ĐƯỢC TẠO
- * file: PDF
- * thumbnail: image
- */
+// Lấy tài liệu theo id (có thể không đăng nhập)
+router.get("/:id", optionalAuth, getDocumentById)
+// Tạo tài liệu mới, chỉ giáo viên mới được tạo
 router.post(
   "/",
   authMiddleware,
@@ -34,16 +35,15 @@ router.post(
   ]),
   createDocument
 )
-
-// GET /api/documents/:id/download
+// Tải tài liệu, cần đăng nhập
 router.get(
   "/:id/download",
-  authMiddleware, // chỉ người đã login mới tải
+  authMiddleware,
   downloadDocument
 );
-
-
+// Xoá tài liệu, chỉ giáo viên mới được xoá
 router.delete("/:id", authMiddleware, deleteDocument)
+// Thích / bỏ thích tài liệu, cần đăng nhập
 router.post("/like", authMiddleware, toggleLike)
 
 export default router

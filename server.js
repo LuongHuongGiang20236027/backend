@@ -1,46 +1,41 @@
-// backend/server.js
 import express from "express";
 import cors from "cors";
-import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
-dotenv.config(); // Load env trước
+import morgan from "morgan";
+
+dotenv.config();
+
+if (!process.env.JWT_SECRET) {
+  console.error("❌ Missing JWT_SECRET in .env");
+  process.exit(1);
+}
+
 
 import { testConnection } from "./src/config/database.js";
 
-// Import routes
 import authRoutes from "./src/routes/auth.js";
 import assignmentRoutes from "./src/routes/assignments.js";
 import documentRoutes from "./src/routes/documents.js";
 import userRoutes from "./src/routes/user.js";
 import testRoutes from "./src/routes/test.js";
-import morgan from "morgan";
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8000;
 
-/* -------------------- MIDDLEWARE -------------------- */
-// CORS chuẩn, hỗ trợ localhost + Vercel
-const allowedOrigins = [
-  "http://localhost:3000",          // local
-  "https://smartedu.vercel.app",    // deploy
-];
-
+// -------------------------
+// Middleware
+// -------------------------
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // Postman / server
-    if (allowedOrigins.indexOf(origin) === -1) {
-      return callback(new Error("CORS policy blocks this origin"), false);
-    }
-    return callback(null, true);
-  },
-  credentials: true,
+  origin: process.env.FRONTEND_URL,
 }));
+
 
 app.use(morgan("dev"));
 app.use(express.json());
-app.use(cookieParser());
 
-/* ---------------------- ROUTES ----------------------- */
+// -------------------------
+// Routes
+// -------------------------
 app.get("/", (req, res) => {
   res.json({ message: "Backend OK!" });
 });
@@ -49,7 +44,6 @@ app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "OK" });
 });
 
-// API groups
 app.use("/api/auth", authRoutes);
 app.use("/api/assignments", assignmentRoutes);
 app.use("/api/documents", documentRoutes);
@@ -59,10 +53,10 @@ app.use("/api/test", testRoutes);
 // Static uploads
 app.use("/uploads", express.static("uploads"));
 
-/* ------------------- START SERVER -------------------- */
+// -------------------------
+// Start server
+// -------------------------
 app.listen(PORT, async () => {
   console.log(`🚀 Server running on port ${PORT}`);
-
-  // Kiểm tra DB
   await testConnection();
 });

@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import morgan from "morgan";
+import path from "path"
 
 dotenv.config();
 
@@ -56,7 +57,11 @@ app.use("/api/user", userRoutes);
 app.use("/api/test", testRoutes);
 
 // Static uploads
-app.use("/uploads", express.static("uploads"));
+app.use(
+  "/uploads",
+  express.static(path.join(process.cwd(), "uploads"))
+)
+
 
 // -------------------------
 // Start server

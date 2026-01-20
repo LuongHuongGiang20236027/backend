@@ -139,29 +139,34 @@ export const toggleLike = async (req, res) => {
 // Tải tài liệu
 export const downloadDocument = async (req, res) => {
   try {
-    const { id } = req.params;
-    const document = await Document.findById(id);
+    const { id } = req.params
+    const document = await Document.findById(id)
 
     if (!document) {
-      return res.status(404).json({ message: "Document not found" });
+      return res.status(404).json({ message: "Document not found" })
     }
-    // Đường dẫn tuyệt đối đến file trên server
+
+    const fileName = path.basename(document.file_url)
+
     const filePath = path.join(
-      "D:\\deploy-web\\backend\\uploads\\documents",
-      path.basename(document.file_url) // lấy tên file thôi
-    );
-    // Debug đường dẫn file
-    console.log("DOWNLOAD PATH =", filePath);
-    // Kiểm tra file có tồn tại không
+      process.cwd(),
+      "uploads",
+      "documents",
+      fileName
+    )
+
+    console.log("DOWNLOAD PATH =", filePath)
+
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: "File not found on server" });
+      return res.status(404).json({ message: "File not found on server" })
     }
-    // Tải file về với tên gốc
-    const originalName = document.title + path.extname(filePath);
-    // Gửi file để tải về
-    return res.download(filePath, originalName);
+
+    const originalName =
+      document.title + path.extname(filePath)
+
+    return res.download(filePath, originalName)
   } catch (err) {
-    console.error("Download error:", err);
-    return res.status(500).json({ message: "Download failed" });
+    console.error("Download error:", err)
+    return res.status(500).json({ message: "Download failed" })
   }
-};
+}

@@ -2,30 +2,38 @@ import User from "../models/User.js";
 // Thư viện mã hóa mật khẩu
 import bcrypt from "bcrypt";
 
+import { uploadToCloudinary } from "../middleware/uploadMiddleware.js"
+
 
 // Cập nhật thông tin cá nhân
 export const updateProfile = async (req, res) => {
   try {
     const { name, gender, birth_date } = req.body
-    // Xử lý avatar nếu có
-    const avatar = req.file
-      ? `${req.protocol}://${req.get("host")}/uploads/avatars/${req.file.filename}`
-      : undefined
 
-    // Cập nhật thông tin user
+    let avatar
+    if (req.file) {
+      const result = await uploadToCloudinary(
+        req.file.buffer,
+        "avatars",
+        "image"
+      )
+      avatar = result.secure_url
+    }
+
     const updatedUser = await User.update(req.userId, {
       name,
       avatar,
       gender,
       birth_date,
     })
-    // Trả về thông tin user đã cập nhật
+
     return res.json({ user: updatedUser })
   } catch (error) {
     console.error("Update profile error:", error)
     return res.status(500).json({ error: "Internal server error" })
   }
 }
+
 
 // Đổi mật khẩu
 export const updatePassword = async (req, res) => {

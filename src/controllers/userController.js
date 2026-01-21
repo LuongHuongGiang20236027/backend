@@ -82,9 +82,13 @@ export const forgotPassword = async (req, res) => {
 
     const link = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
 
-    await sendResetMail(user.email, link);
+    const mailResult = await sendResetMail(user.email, link)
 
-    res.json({ success: true });
+    res.json({
+      success: true,
+      mailId: mailResult.id
+    })
+
   } catch (err) {
     console.error("Forgot password error:", err);
     res.status(500).json({ error: "Server error" });

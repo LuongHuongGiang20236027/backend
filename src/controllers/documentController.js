@@ -1,9 +1,6 @@
 import Document from "../models/Document.js"
-// Đọc file hệ thống
-import path from "path";
-// Dùng fs.existsSync để kiểm tra file có tồn tại
-import fs from "fs";
 
+import { uploadToCloudinary } from "../middleware/uploadMiddleware.js"
 
 // Lấy tất cả tài liệu
 export const getAllDocuments = async (req, res) => {
@@ -74,14 +71,23 @@ export const createDocument = async (req, res) => {
     }
     // Lấy file và thumbnail
     const file = req.files.file[0]
+    const uploadResult = await uploadToCloudinary(
+      file.buffer,
+      "documents",
+      "raw" // PDF = raw
+    )
     const thumbnail = req.files.thumbnail?.[0]
     // Tạo document mới
     const document = await Document.create({
       title,
       description,
-      file_url: `/uploads/documents/${file.filename}`,// lưu đường dẫn tương đối
+      file_url: uploadResult.secure_url, // LINK CLOUD
       thumbnail: thumbnail
-        ? `/uploads/documents/thumbnails/${thumbnail.filename}`// lưu đường dẫn tương đối
+        ? (await uploadToCloudinary(
+          thumbnail.buffer,
+          "documents/thumbnails",
+          "image"
+        )).secure_url
         : null,
       created_by: req.userId,
     })
@@ -120,6 +126,9 @@ export const deleteDocument = async (req, res) => {
 // Thích / bỏ thích tài liệu
 export const toggleLike = async (req, res) => {
   try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" })
+    }
     const { document_id } = req.body
     // Kiểm tra dữ liệu đầu vào
     if (!document_id) {
@@ -140,6 +149,10 @@ export const toggleLike = async (req, res) => {
 // Tải tài liệu
 export const downloadDocument = async (req, res) => {
   try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" })
+    }
+
     const { id } = req.params
     const document = await Document.findById(id)
 
@@ -147,27 +160,11 @@ export const downloadDocument = async (req, res) => {
       return res.status(404).json({ message: "Document not found" })
     }
 
-    const fileName = path.basename(document.file_url)
-
-    const filePath = path.join(
-      process.cwd(),
-      "uploads",
-      "documents",
-      fileName
-    )
-
-    console.log("DOWNLOAD PATH =", filePath)
-
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: "File not found on server" })
-    }
-
-    const originalName =
-      document.title + path.extname(filePath)
-
-    return res.download(filePath, originalName)
+    // Redirect sang Cloudinary → browser tự download
+    return res.redirect(document.file_url)
   } catch (err) {
-    console.error("Download error:", err)
+    console.error("Download failed:", err)
     return res.status(500).json({ message: "Download failed" })
   }
 }
+

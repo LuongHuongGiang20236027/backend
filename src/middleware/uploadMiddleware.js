@@ -1,59 +1,59 @@
-// Middleware xử lý upload file
-import multer from "multer";
-// Hỗ trợ đường dẫn và hệ thống file
-import path from "path";
-// Hỗ trợ hệ thống file
-import fs from "fs";
+import multer from "multer"
+import { v2 as cloudinary } from "cloudinary"
 
-// Cấu hình storage
-const storage = multer.diskStorage({
-    // Nơi lưu trữ file
-    destination: (req, file, cb) => {
-        // Xác định thư mục lưu trữ dựa trên fieldname
-        let uploadPath = "uploads";
-        // Tạo thư mục tương ứng nếu không tồn tại
-        if (file.fieldname === "avatar") {
-            uploadPath = "uploads/avatars";
-        }
-        else if (file.fieldname === "thumbnail") {
-            uploadPath = "uploads/documents/thumbnails";
-        }
-        else if (file.fieldname === "file") {
-            uploadPath = "uploads/documents";
-        }
-        // Tạo thư mục nếu chưa tồn tại
-        fs.mkdirSync(uploadPath, { recursive: true });
-        cb(null, uploadPath);
-    },
-    // Tên file
-    filename: (req, file, cb) => {
-        // Tạo tên file duy nhất
-        const ext = path.extname(file.originalname);
-        // Tên file: timestamp-random.ext
-        const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-        cb(null, uniqueName);
-    },
-});
+// =====================
+// Cloudinary config
+// =====================
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+})
 
-// Lọc file upload
+// =====================
+// Multer memory storage
+// =====================
+const storage = multer.memoryStorage()
+
+// =====================
+// File filter
+// =====================
 const fileFilter = (req, file, cb) => {
     // PDF cho tài liệu
     if (file.fieldname === "file") {
-        // Chỉ cho phép file PDF
-        if (file.mimetype === "application/pdf") cb(null, true);
-        else cb(new Error("Chỉ cho phép file PDF"), false);
+        if (file.mimetype === "application/pdf") cb(null, true)
+        else cb(new Error("Chỉ cho phép file PDF"), false)
     }
     // Ảnh cho avatar và thumbnail
     else if (["avatar", "thumbnail"].includes(file.fieldname)) {
-        // Chỉ cho phép file ảnh
-        const allowedImages = ["image/jpeg", "image/png", "image/jpg"];
-        // Nếu đúng loại ảnh
-        if (allowedImages.includes(file.mimetype)) cb(null, true);
-        // Nếu không đúng loại ảnh
-        else cb(new Error("File ảnh không hợp lệ"), false);
+        const allowedImages = ["image/jpeg", "image/png", "image/jpg"]
+        if (allowedImages.includes(file.mimetype)) cb(null, true)
+        else cb(new Error("File ảnh không hợp lệ"), false)
     }
+    else cb(new Error("Field upload không hợp lệ"), false)
+}
 
-    else cb(new Error("Field upload không hợp lệ"), false);
-};
+// =====================
+// Upload helper
+// =====================
+export const uploadToCloudinary = (buffer, folder, resourceType = "image") => {
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+            {
+                folder,
+                resource_type: resourceType,
+            },
+            (error, result) => {
+                if (error) reject(error)
+                else resolve(result)
+            }
+        )
 
-export const upload = multer({ storage, fileFilter });
+        stream.end(buffer)
+    })
+}
+
+// =====================
+// Multer export
+// =====================
+export const upload = multer({ storage, fileFilter })

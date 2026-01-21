@@ -4,6 +4,8 @@ import path from "path";
 // Dùng fs.existsSync để kiểm tra file có tồn tại
 import fs from "fs";
 
+import { uploadToCloudinary } from "../middleware/uploadMiddleware.js"
+
 // Lấy tất cả tài liệu
 export const getAllDocuments = async (req, res) => {
   try {
@@ -59,29 +61,53 @@ export const getLikedDocuments = async (req, res) => {
   }
 }
 
-// Tạo tài liệu mới
 export const createDocument = async (req, res) => {
   try {
     const { title, description } = req.body
-    // Kiểm tra dữ liệu đầu vào
+
     if (!title || !req.files?.file) {
       return res.status(400).json({ error: "Missing title or file" })
     }
-    // Kiểm tra user đã đăng nhập
+
     if (!req.userId) {
       return res.status(401).json({ error: "Unauthorized" })
     }
-    // Lấy file và thumbnail
-    const file = req.files.file[0]
-    const thumbnail = req.files.thumbnail?.[0]
-    // Tạo document mới
+
+    let fileUrl = null
+    let thumbnailUrl = null
+
+    // =====================
+    // Upload PDF
+    // =====================
+    if (req.files.file?.[0]) {
+      const fileResult = await uploadToCloudinary(
+        req.files.file[0].buffer,
+        "documents/files",
+        "raw"
+      )
+      fileUrl = fileResult.secure_url
+    }
+
+    // =====================
+    // Upload thumbnail
+    // =====================
+    if (req.files.thumbnail?.[0]) {
+      const thumbResult = await uploadToCloudinary(
+        req.files.thumbnail[0].buffer,
+        "documents/thumbnails",
+        "image"
+      )
+      thumbnailUrl = thumbResult.secure_url
+    }
+
+    // =====================
+    // Save DB
+    // =====================
     const document = await Document.create({
       title,
       description,
-      file_url: `/uploads/documents/${file.filename}`,// lưu đường dẫn tương đối
-      thumbnail: thumbnail
-        ? `/uploads/documents/thumbnails/${thumbnail.filename}`// lưu đường dẫn tương đối
-        : null,
+      file_url: fileUrl,
+      thumbnail: thumbnailUrl,
       created_by: req.userId,
     })
 
@@ -91,6 +117,7 @@ export const createDocument = async (req, res) => {
     return res.status(500).json({ error: error.message })
   }
 }
+
 
 // Xoá tài liệu
 export const deleteDocument = async (req, res) => {
@@ -136,37 +163,20 @@ export const toggleLike = async (req, res) => {
   }
 }
 
-// Tải tài liệu
 export const downloadDocument = async (req, res) => {
   try {
     const { id } = req.params
     const document = await Document.findById(id)
 
-    if (!document) {
+    if (!document || !document.file_url) {
       return res.status(404).json({ message: "Document not found" })
     }
 
-    const fileName = path.basename(document.file_url)
-
-    const filePath = path.join(
-      process.cwd(),
-      "uploads",
-      "documents",
-      fileName
-    )
-
-    console.log("DOWNLOAD PATH =", filePath)
-
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: "File not found on server" })
-    }
-
-    const originalName =
-      document.title + path.extname(filePath)
-
-    return res.download(filePath, originalName)
+    // Redirect sang Cloudinary
+    return res.redirect(document.file_url)
   } catch (err) {
     console.error("Download error:", err)
     return res.status(500).json({ message: "Download failed" })
   }
 }
+

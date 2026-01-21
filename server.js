@@ -56,11 +56,7 @@ app.use("/api/documents", documentRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/test", testRoutes);
 
-// Static uploads
-app.use(
-  "/uploads",
-  express.static(path.join(process.cwd(), "uploads"))
-)
+
 
 
 // -------------------------

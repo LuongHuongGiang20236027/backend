@@ -1,26 +1,27 @@
-import { Resend } from "resend"
+import nodemailer from "nodemailer"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+    },
+})
 
 export async function sendResetMail(to, link) {
-    try {
-        const result = await resend.emails.send({
-            from: process.env.MAIL_FROM,
-            to,
-            subject: "Khôi phục mật khẩu Smart Edu",
-            html: `
-        <h3>Khôi phục mật khẩu</h3>
-        <p>Bạn đã yêu cầu đặt lại mật khẩu.</p>
-        <p>Link này hết hạn sau 15 phút:</p>
-        <a href="${link}">${link}</a>
-        <p>Nếu không phải bạn, hãy bỏ qua email này.</p>
-      `
-        })
+    const info = await transporter.sendMail({
+        from: `"Smart Edu" <${process.env.EMAIL_USER}>`,
+        to,
+        subject: "Khôi phục mật khẩu Smart Edu",
+        html: `
+      <h3>Khôi phục mật khẩu</h3>
+      <p>Bạn đã yêu cầu đặt lại mật khẩu.</p>
+      <p>Link này hết hạn sau 15 phút:</p>
+      <a href="${link}">${link}</a>
+      <p>Nếu không phải bạn, hãy bỏ qua email này.</p>
+    `,
+    })
 
-        console.log("📧 RESEND SUCCESS:", result)
-        return result
-    } catch (err) {
-        console.error("❌ RESEND FAILED:", err)
-        throw err
-    }
+    console.log("📧 MAIL SENT:", info.response)
+    return info
 }

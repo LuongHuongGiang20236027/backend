@@ -66,34 +66,34 @@ export const updatePassword = async (req, res) => {
 
 export const forgotPassword = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email } = req.body
 
-    const user = await User.findByEmail(email);
+    const user = await User.findByEmail(email)
 
     // Không tiết lộ email có tồn tại hay không
     if (!user) {
-      return res.json({ success: true });
+      return res.json({ success: true })
     }
 
-    const token = crypto.randomBytes(32).toString("hex");
-    const expires = new Date(Date.now() + 15 * 60 * 1000);
+    const token = crypto.randomBytes(32).toString("hex")
+    const expires = new Date(Date.now() + 15 * 60 * 1000)
 
-    await PasswordReset.create(user.id, token, expires);
+    await PasswordReset.create(user.id, token, expires)
 
-    const link = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    const link = `${process.env.FRONTEND_URL}/reset-password?token=${token}`
 
-    const mailResult = await sendResetMail(user.email, link)
+    await sendResetMail(user.email, link)
 
     res.json({
       success: true,
-      mailId: mailResult.id
+      message: "Email reset đã được gửi"
     })
-
   } catch (err) {
-    console.error("Forgot password error:", err);
-    res.status(500).json({ error: "Server error" });
+    console.error("Forgot password error:", err)
+    res.status(500).json({ error: "Server error" })
   }
-};
+}
+
 
 export const resetPasswordByToken = async (req, res) => {
   try {

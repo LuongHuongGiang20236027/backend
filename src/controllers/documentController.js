@@ -185,10 +185,11 @@ export const downloadDocument = async (req, res) => {
       "/upload/fl_attachment/"
     )
 
-    return res.redirect(downloadUrl)
+    return res.json({ downloadUrl })
   } catch (err) {
     console.error("Download error:", err)
     return res.status(500).json({ message: "Download failed" })
   }
 }
+
 

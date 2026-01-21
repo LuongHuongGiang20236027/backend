@@ -2,6 +2,10 @@ import User from "../models/User.js";
 // Thư viện mã hóa mật khẩu
 import bcrypt from "bcrypt";
 
+import crypto from "crypto";
+import PasswordReset from "../models/PasswordReset.js";
+import { sendResetMail } from "../utils/mailer.js";
+
 // Cập nhật thông tin cá nhân
 export const updateProfile = async (req, res) => {
   try {
@@ -57,5 +61,53 @@ export const updatePassword = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findByEmail(email);
+
+    // Không tiết lộ email có tồn tại hay không
+    if (!user) {
+      return res.json({ success: true });
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const expires = new Date(Date.now() + 15 * 60 * 1000);
+
+    await PasswordReset.create(user.id, token, expires);
+
+    const link = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+
+    await sendResetMail(user.email, link);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Forgot password error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+export const resetPasswordByToken = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    const reset = await PasswordReset.findValidToken(token);
+    if (!reset) {
+      return res.status(400).json({ error: "Token không hợp lệ hoặc đã hết hạn" });
+    }
+
+    const hash = await bcrypt.hash(newPassword, 10);
+
+    await User.updatePassword(reset.user_id, hash);
+    await PasswordReset.markUsed(reset.id);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Reset password error:", err);
+    res.status(500).json({ error: "Server error" });
   }
 };

@@ -3,7 +3,7 @@ import Document from "../models/Document.js"
 import path from "path";
 // Dùng fs.existsSync để kiểm tra file có tồn tại
 import fs from "fs";
-
+import { uploadToCloudinary } from "../middleware/uploadMiddleware.js"
 
 // Lấy tất cả tài liệu
 export const getAllDocuments = async (req, res) => {
@@ -63,35 +63,52 @@ export const getLikedDocuments = async (req, res) => {
 // Tạo tài liệu mới
 export const createDocument = async (req, res) => {
   try {
-    const { title, description } = req.body
-    // Kiểm tra dữ liệu đầu vào
-    if (!title || !req.files?.file) {
-      return res.status(400).json({ error: "Missing title or file" })
-    }
-    // Kiểm tra user đã đăng nhập
     if (!req.userId) {
       return res.status(401).json({ error: "Unauthorized" })
     }
-    // Lấy file và thumbnail
+
+    const { title, description } = req.body
+
+    if (!title || !req.files?.file?.[0]) {
+      return res.status(400).json({ error: "Missing title or file" })
+    }
+
     const file = req.files.file[0]
     const thumbnail = req.files.thumbnail?.[0]
-    // Tạo document mới
+
+    // Upload PDF
+    const fileUpload = await uploadToCloudinary(
+      file.buffer,
+      "documents",
+      "raw" // PDF
+    )
+
+    // Upload thumbnail nếu có
+    let thumbnailUrl = null
+    if (thumbnail) {
+      const thumbUpload = await uploadToCloudinary(
+        thumbnail.buffer,
+        "documents/thumbnails",
+        "image"
+      )
+      thumbnailUrl = thumbUpload.secure_url
+    }
+
     const document = await Document.create({
       title,
       description,
-      file_url: `/uploads/documents/${file.filename}`,// lưu đường dẫn tương đối
-      thumbnail: thumbnail
-        ? `/uploads/documents/thumbnails/${thumbnail.filename}`// lưu đường dẫn tương đối
-        : null,
+      file_url: fileUpload.secure_url,
+      thumbnail: thumbnailUrl,
       created_by: req.userId,
     })
 
     return res.status(201).json({ document })
   } catch (error) {
     console.error("CREATE DOCUMENT ERROR:", error)
-    return res.status(500).json({ error: error.message })
+    return res.status(500).json({ error: "Upload failed" })
   }
 }
+
 
 // Xoá tài liệu
 export const deleteDocument = async (req, res) => {

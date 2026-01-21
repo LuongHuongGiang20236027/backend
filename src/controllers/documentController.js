@@ -126,9 +126,6 @@ export const deleteDocument = async (req, res) => {
 // Thích / bỏ thích tài liệu
 export const toggleLike = async (req, res) => {
   try {
-    if (!req.userId) {
-      return res.status(401).json({ error: "Unauthorized" })
-    }
     const { document_id } = req.body
     // Kiểm tra dữ liệu đầu vào
     if (!document_id) {
@@ -149,10 +146,6 @@ export const toggleLike = async (req, res) => {
 // Tải tài liệu
 export const downloadDocument = async (req, res) => {
   try {
-    if (!req.userId) {
-      return res.status(401).json({ error: "Unauthorized" })
-    }
-
     const { id } = req.params
     const document = await Document.findById(id)
 
@@ -160,11 +153,10 @@ export const downloadDocument = async (req, res) => {
       return res.status(404).json({ message: "Document not found" })
     }
 
-    // Redirect sang Cloudinary → browser tự download
-    return res.redirect(document.file_url)
+    return res.json({
+      url: document.file_url
+    })
   } catch (err) {
-    console.error("Download failed:", err)
     return res.status(500).json({ message: "Download failed" })
   }
 }
-

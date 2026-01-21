@@ -12,9 +12,10 @@ export const getAllDocuments = async (req, res) => {
     const result = documents.map((doc) => {
       if (doc.file_url) {
         doc.preview_url = doc.file_url.replace(
-          "/upload/",
-          "/upload/fl_inline/"
+          "/raw/upload/",
+          "/raw/upload/fl_inline/"
         )
+
       }
       return doc
     })
@@ -43,9 +44,10 @@ export const getDocumentById = async (req, res) => {
 
     if (document.file_url) {
       document.preview_url = document.file_url.replace(
-        "/upload/",
-        "/upload/fl_inline/"
+        "/raw/upload/",
+        "/raw/upload/fl_inline/"
       )
+
     }
 
     return res.json({ document })
@@ -181,9 +183,10 @@ export const downloadDocument = async (req, res) => {
     }
 
     const downloadUrl = document.file_url.replace(
-      "/upload/",
-      "/upload/fl_attachment/"
+      "/raw/upload/",
+      "/raw/upload/fl_attachment/"
     )
+
 
     return res.json({ downloadUrl })
   } catch (err) {

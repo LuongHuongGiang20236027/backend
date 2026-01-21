@@ -1,5 +1,7 @@
 import Assignment from "../models/Assignment.js"
 
+import { uploadToCloudinary } from "../middleware/uploadMiddleware.js"
+
 // Lấy tất cả bài tập
 export const getAllAssignments = async (req, res) => {
   try {
@@ -45,7 +47,6 @@ export const createAssignment = async (req, res) => {
   try {
     let { title, description, total_score, questions } = req.body
 
-    // Nếu questions là chuỗi JSON, parse nó
     if (typeof questions === "string") {
       questions = JSON.parse(questions)
     }
@@ -54,12 +55,16 @@ export const createAssignment = async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" })
     }
 
-    // Xử lý thumbnail nếu có
-    const thumbnail = req.file
-      ? `/uploads/documents/thumbnails/${req.file.filename}`
-      : null
+    let thumbnail = null
+    if (req.file) {
+      const result = await uploadToCloudinary(
+        req.file.buffer,
+        "assignments/thumbnails",
+        "image"
+      )
+      thumbnail = result.secure_url
+    }
 
-    // Tạo bài tập
     const assignment = await Assignment.create({
       title,
       description,
@@ -68,7 +73,6 @@ export const createAssignment = async (req, res) => {
       created_by: req.userId,
     })
 
-    // Tạo câu hỏi và đáp án
     for (let q of questions) {
       await Assignment.createQuestionWithAnswers({
         assignment_id: assignment.id,
@@ -85,6 +89,7 @@ export const createAssignment = async (req, res) => {
     res.status(500).json({ error: "Internal server error" })
   }
 }
+
 
 // Nộp bài tập
 export const submitAssignment = async (req, res) => {

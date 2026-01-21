@@ -1,6 +1,9 @@
 import Document from "../models/Document.js"
+// Đọc file hệ thống
+import path from "path";
+// Dùng fs.existsSync để kiểm tra file có tồn tại
+import fs from "fs";
 
-import { uploadToCloudinary } from "../middleware/uploadMiddleware.js"
 
 // Lấy tất cả tài liệu
 export const getAllDocuments = async (req, res) => {
@@ -71,23 +74,14 @@ export const createDocument = async (req, res) => {
     }
     // Lấy file và thumbnail
     const file = req.files.file[0]
-    const uploadResult = await uploadToCloudinary(
-      file.buffer,
-      "documents",
-      "raw" // PDF = raw
-    )
     const thumbnail = req.files.thumbnail?.[0]
     // Tạo document mới
     const document = await Document.create({
       title,
       description,
-      file_url: uploadResult.secure_url, // LINK CLOUD
+      file_url: `/uploads/documents/${file.filename}`,// lưu đường dẫn tương đối
       thumbnail: thumbnail
-        ? (await uploadToCloudinary(
-          thumbnail.buffer,
-          "documents/thumbnails",
-          "image"
-        )).secure_url
+        ? `/uploads/documents/thumbnails/${thumbnail.filename}`// lưu đường dẫn tương đối
         : null,
       created_by: req.userId,
     })
@@ -153,10 +147,27 @@ export const downloadDocument = async (req, res) => {
       return res.status(404).json({ message: "Document not found" })
     }
 
-    return res.json({
-      url: document.file_url
-    })
+    const fileName = path.basename(document.file_url)
+
+    const filePath = path.join(
+      process.cwd(),
+      "uploads",
+      "documents",
+      fileName
+    )
+
+    console.log("DOWNLOAD PATH =", filePath)
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "File not found on server" })
+    }
+
+    const originalName =
+      document.title + path.extname(filePath)
+
+    return res.download(filePath, originalName)
   } catch (err) {
+    console.error("Download error:", err)
     return res.status(500).json({ message: "Download failed" })
   }
 }

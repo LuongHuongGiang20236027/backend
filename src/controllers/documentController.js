@@ -5,16 +5,7 @@ import { uploadToCloudinary } from "../middleware/uploadMiddleware.js"
 export const getAllDocuments = async (req, res) => {
   try {
     const documents = await Document.findAll()
-
-    const result = documents.map((doc) => {
-      if (doc.file_url) {
-        doc.preview_url = doc.file_url
-
-      }
-      return doc
-    })
-
-    res.json({ documents: result })
+    res.json({ documents })
   } catch (error) {
     console.error("Get documents error:", error)
     res.status(500).json({ error: "Internal server error" })
@@ -36,11 +27,6 @@ export const getDocumentById = async (req, res) => {
       document.isLiked = isLiked
     }
 
-    if (document.file_url) {
-      document.preview_url = document.file_url
-
-    }
-
     return res.json({ document })
   } catch (error) {
     console.error("Get document error:", error)
@@ -48,7 +34,7 @@ export const getDocumentById = async (req, res) => {
   }
 }
 
-// Lấy danh sách tài liệu của user hiện tại
+// Lấy tài liệu của user
 export const getMyDocuments = async (req, res) => {
   try {
     const documents = await Document.findByCreator(req.userId)
@@ -59,7 +45,7 @@ export const getMyDocuments = async (req, res) => {
   }
 }
 
-// Lấy danh sách tài liệu đã thích
+// Lấy tài liệu đã thích
 export const getLikedDocuments = async (req, res) => {
   try {
     const documents = await Document.findLikedByUser(req.userId)
@@ -86,12 +72,12 @@ export const createDocument = async (req, res) => {
     let fileUrl = null
     let thumbnailUrl = null
 
-    // Upload PDF (PHẢI LÀ IMAGE)
+    // Upload PDF (PHẢI LÀ RAW)
     if (req.files.file?.[0]) {
       const fileResult = await uploadToCloudinary(
         req.files.file[0].buffer,
         "documents/files",
-        "image" // ✅ QUAN TRỌNG
+        "image"
       )
       fileUrl = fileResult.secure_url
     }
@@ -143,7 +129,7 @@ export const deleteDocument = async (req, res) => {
   }
 }
 
-// Thích / bỏ thích
+// Like / Unlike
 export const toggleLike = async (req, res) => {
   try {
     const { document_id } = req.body
@@ -173,8 +159,8 @@ export const downloadDocument = async (req, res) => {
     }
 
     const downloadUrl = document.file_url.replace(
-      "/image/upload/",
-      "/image/upload/fl_attachment/"
+      "/upload/",
+      "/upload/fl_attachment/"
     )
 
     return res.json({ downloadUrl })

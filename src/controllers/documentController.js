@@ -1,5 +1,9 @@
 import Document from "../models/Document.js"
-import { uploadToCloudinary } from "../middleware/uploadMiddleware.js"
+// Đọc file hệ thống
+import path from "path";
+// Dùng fs.existsSync để kiểm tra file có tồn tại
+import fs from "fs";
+
 
 // Lấy tất cả tài liệu
 export const getAllDocuments = async (req, res) => {
@@ -17,24 +21,24 @@ export const getDocumentById = async (req, res) => {
   try {
     const { id } = req.params
     const document = await Document.findById(id)
-
+    // Kiểm tra tồn tại
     if (!document) {
       return res.status(404).json({ error: "Document not found" })
     }
-
+    // Kiểm tra user đã thích chưa
     if (req.userId) {
       const isLiked = await Document.isLikedByUser(id, req.userId)
       document.isLiked = isLiked
     }
 
-    return res.json({ document })
+    res.json({ document })
   } catch (error) {
     console.error("Get document error:", error)
-    return res.status(500).json({ error: "Internal server error" })
+    res.status(500).json({ error: "Internal server error" })
   }
 }
 
-// Lấy tài liệu của user
+// Lấy danh sách tài liệu của user hiện tại
 export const getMyDocuments = async (req, res) => {
   try {
     const documents = await Document.findByCreator(req.userId)
@@ -45,7 +49,7 @@ export const getMyDocuments = async (req, res) => {
   }
 }
 
-// Lấy tài liệu đã thích
+// Lấy danh sách tài liệu đã thích của user hiện tại
 export const getLikedDocuments = async (req, res) => {
   try {
     const documents = await Document.findLikedByUser(req.userId)
@@ -56,47 +60,29 @@ export const getLikedDocuments = async (req, res) => {
   }
 }
 
-// Tạo tài liệu
+// Tạo tài liệu mới
 export const createDocument = async (req, res) => {
   try {
     const { title, description } = req.body
-
+    // Kiểm tra dữ liệu đầu vào
     if (!title || !req.files?.file) {
       return res.status(400).json({ error: "Missing title or file" })
     }
-
+    // Kiểm tra user đã đăng nhập
     if (!req.userId) {
       return res.status(401).json({ error: "Unauthorized" })
     }
-
-    let fileUrl = null
-    let thumbnailUrl = null
-
-    // Upload PDF (PHẢI LÀ RAW)
-    if (req.files.file?.[0]) {
-      const fileResult = await uploadToCloudinary(
-        req.files.file[0].buffer,
-        "documents/files",
-        "image"
-      )
-      fileUrl = fileResult.secure_url
-    }
-
-    // Upload thumbnail
-    if (req.files.thumbnail?.[0]) {
-      const thumbResult = await uploadToCloudinary(
-        req.files.thumbnail[0].buffer,
-        "documents/thumbnails",
-        "image"
-      )
-      thumbnailUrl = thumbResult.secure_url
-    }
-
+    // Lấy file và thumbnail
+    const file = req.files.file[0]
+    const thumbnail = req.files.thumbnail?.[0]
+    // Tạo document mới
     const document = await Document.create({
       title,
       description,
-      file_url: fileUrl,
-      thumbnail: thumbnailUrl,
+      file_url: `/uploads/documents/${file.filename}`,// lưu đường dẫn tương đối
+      thumbnail: thumbnail
+        ? `/uploads/documents/thumbnails/${thumbnail.filename}`// lưu đường dẫn tương đối
+        : null,
       created_by: req.userId,
     })
 
@@ -112,11 +98,13 @@ export const deleteDocument = async (req, res) => {
   try {
     const { id } = req.params
 
+    // Kiểm tra tồn tại và quyền sở hữu
     const document = await Document.findById(id)
+    // Kiểm tra tồn tại
     if (!document) {
       return res.status(404).json({ error: "Document not found" })
     }
-
+    // Chỉ cho xoá nếu là người tạo tài liệu
     if (document.created_by !== req.userId) {
       return res.status(403).json({ error: "Unauthorized" })
     }
@@ -129,18 +117,19 @@ export const deleteDocument = async (req, res) => {
   }
 }
 
-// Like / Unlike
+// Thích / bỏ thích tài liệu
 export const toggleLike = async (req, res) => {
   try {
     const { document_id } = req.body
-
+    // Kiểm tra dữ liệu đầu vào
     if (!document_id) {
       return res.status(400).json({ error: "Missing document_id" })
     }
-
+    // Thích / bỏ thích
     const isLiked = await Document.toggleLike(document_id, req.userId)
+    // Lấy số lượt thích hiện tại
     const document = await Document.findById(document_id)
-
+    // Trả về kết quả
     res.json({ isLiked, likeCount: document.like_count })
   } catch (error) {
     console.error("Toggle like error:", error)
@@ -148,22 +137,35 @@ export const toggleLike = async (req, res) => {
   }
 }
 
-// Download
+// Tải tài liệu
 export const downloadDocument = async (req, res) => {
   try {
     const { id } = req.params
     const document = await Document.findById(id)
 
-    if (!document || !document.file_url) {
+    if (!document) {
       return res.status(404).json({ message: "Document not found" })
     }
 
-    const downloadUrl = document.file_url.replace(
-      "/upload/",
-      "/upload/fl_attachment/"
+    const fileName = path.basename(document.file_url)
+
+    const filePath = path.join(
+      process.cwd(),
+      "uploads",
+      "documents",
+      fileName
     )
 
-    return res.json({ downloadUrl })
+    console.log("DOWNLOAD PATH =", filePath)
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "File not found on server" })
+    }
+
+    const originalName =
+      document.title + path.extname(filePath)
+
+    return res.download(filePath, originalName)
   } catch (err) {
     console.error("Download error:", err)
     return res.status(500).json({ message: "Download failed" })

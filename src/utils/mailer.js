@@ -1,18 +1,12 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend"
 
-export const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS
-    }
-});
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function sendResetMail(to, link) {
-    return transporter.sendMail({
-        from: `"Smart Edu" <${process.env.MAIL_USER}>`,
+    return resend.emails.send({
+        from: process.env.MAIL_FROM,
         to,
-        subject: "Khôi phục mật khẩu",
+        subject: "Khôi phục mật khẩu Smart Edu",
         html: `
       <h3>Khôi phục mật khẩu</h3>
       <p>Bạn đã yêu cầu đặt lại mật khẩu.</p>
@@ -20,5 +14,5 @@ export async function sendResetMail(to, link) {
       <a href="${link}">${link}</a>
       <p>Nếu không phải bạn, hãy bỏ qua email này.</p>
     `
-    });
+    })
 }

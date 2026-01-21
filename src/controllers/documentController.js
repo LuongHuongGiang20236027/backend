@@ -8,10 +8,8 @@ export const getAllDocuments = async (req, res) => {
 
     const result = documents.map((doc) => {
       if (doc.file_url) {
-        doc.preview_url = doc.file_url.replace(
-          "/image/upload/",
-          "/image/upload/fl_inline/"
-        )
+        doc.preview_url = doc.file_url
+
       }
       return doc
     })
@@ -39,10 +37,8 @@ export const getDocumentById = async (req, res) => {
     }
 
     if (document.file_url) {
-      document.preview_url = document.file_url.replace(
-        "/image/upload/",
-        "/image/upload/fl_inline/"
-      )
+      document.preview_url = document.file_url
+
     }
 
     return res.json({ document })

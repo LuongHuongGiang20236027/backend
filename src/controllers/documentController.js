@@ -164,14 +164,25 @@ export const downloadDocument = async (req, res) => {
       return res.status(404).json({ message: "Document not found" })
     }
 
-    const filename = encodeURIComponent(document.title + ".pdf")
+    const fileName = path.basename(document.file_url)
 
-    const downloadUrl = document.file_url.replace(
-      "/upload/",
-      `/upload/fl_attachment:filename=${filename}/`
+    const filePath = path.join(
+      process.cwd(),
+      "uploads",
+      "documents",
+      fileName
     )
 
-    return res.redirect(downloadUrl)
+    console.log("DOWNLOAD PATH =", filePath)
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "File not found on server" })
+    }
+
+    const originalName =
+      document.title + path.extname(filePath)
+
+    return res.download(filePath, originalName)
   } catch (err) {
     console.error("Download error:", err)
     return res.status(500).json({ message: "Download failed" })

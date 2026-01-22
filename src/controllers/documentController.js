@@ -1,8 +1,5 @@
 import Document from "../models/Document.js"
-// Đọc file hệ thống
-import path from "path";
-// Dùng fs.existsSync để kiểm tra file có tồn tại
-import fs from "fs";
+
 import { uploadToCloudinary } from "../middleware/uploadMiddleware.js"
 
 // Lấy tất cả tài liệu
@@ -164,27 +161,16 @@ export const downloadDocument = async (req, res) => {
       return res.status(404).json({ message: "Document not found" })
     }
 
-    const fileName = path.basename(document.file_url)
-
-    const filePath = path.join(
-      process.cwd(),
-      "uploads",
-      "documents",
-      fileName
+    // Ép Cloudinary tải file thay vì preview
+    const downloadUrl = document.file_url.replace(
+      "/upload/",
+      "/upload/fl_attachment/"
     )
 
-    console.log("DOWNLOAD PATH =", filePath)
-
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: "File not found on server" })
-    }
-
-    const originalName =
-      document.title + path.extname(filePath)
-
-    return res.download(filePath, originalName)
+    return res.redirect(downloadUrl)
   } catch (err) {
     console.error("Download error:", err)
     return res.status(500).json({ message: "Download failed" })
   }
 }
+

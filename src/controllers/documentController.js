@@ -1,5 +1,8 @@
 import Document from "../models/Document.js"
-
+// Đọc file hệ thống
+import path from "path";
+// Dùng fs.existsSync để kiểm tra file có tồn tại
+import fs from "fs";
 import { uploadToCloudinary } from "../middleware/uploadMiddleware.js"
 
 // Lấy tất cả tài liệu
@@ -161,10 +164,11 @@ export const downloadDocument = async (req, res) => {
       return res.status(404).json({ message: "Document not found" })
     }
 
-    // Ép Cloudinary tải file thay vì preview
+    const filename = encodeURIComponent(document.title + ".pdf")
+
     const downloadUrl = document.file_url.replace(
       "/upload/",
-      "/upload/fl_attachment/"
+      `/upload/fl_attachment:filename=${filename}/`
     )
 
     return res.redirect(downloadUrl)
@@ -173,4 +177,3 @@ export const downloadDocument = async (req, res) => {
     return res.status(500).json({ message: "Download failed" })
   }
 }
-

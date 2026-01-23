@@ -1,10 +1,14 @@
 import { pool } from "../config/database.js";
 
 class Assignment {
-  // Lấy tất cả bài tập
+  // =============================
+  // LẤY TẤT CẢ BÀI TẬP
+  // =============================
   static async findAll() {
     const res = await pool.query(
-      `SELECT a.*, u.name AS author_name
+      `SELECT 
+        a.*, 
+        u.name AS author_name
        FROM assignments a
        LEFT JOIN users u ON a.created_by = u.id
        ORDER BY a.created_at DESC`
@@ -12,7 +16,6 @@ class Assignment {
 
     const assignments = res.rows;
 
-    // Lấy câu hỏi kèm tất cả đáp án, không giữ is_correct
     for (let a of assignments) {
       a.questions = await this.getQuestionsWithAllAnswers(a.id, false);
     }
@@ -20,26 +23,39 @@ class Assignment {
     return assignments;
   }
 
-  // Lấy bài tập theo id
+  // =============================
+  // LẤY BÀI TẬP THEO ID
+  // =============================
   static async findById(id) {
     const res = await pool.query(
-      `SELECT a.*, u.name AS author_name
+      `SELECT 
+        a.*, 
+        u.name AS author_name
        FROM assignments a
        LEFT JOIN users u ON a.created_by = u.id
        WHERE a.id = $1`,
       [id]
     );
+
     const assignment = res.rows[0];
     if (!assignment) return null;
-    // Lấy câu hỏi kèm tất cả đáp án, không giữ is_correct
-    assignment.questions = await this.getQuestionsWithAllAnswers(assignment.id, false);
+
+    assignment.questions = await this.getQuestionsWithAllAnswers(
+      assignment.id,
+      false
+    );
+
     return assignment;
   }
 
-  // Lấy bài tập của một giáo viên
+  // =============================
+  // LẤY BÀI TẬP CỦA GIÁO VIÊN
+  // =============================
   static async findByCreator(userId) {
     const res = await pool.query(
-      `SELECT a.*, u.name AS author_name
+      `SELECT 
+        a.*, 
+        u.name AS author_name
        FROM assignments a
        LEFT JOIN users u ON a.created_by = u.id
        WHERE a.created_by = $1
@@ -49,7 +65,6 @@ class Assignment {
 
     const assignments = res.rows;
 
-    // Lấy câu hỏi kèm tất cả đáp án, có giữ is_correct
     for (let a of assignments) {
       a.questions = await this.getQuestionsWithAllAnswers(a.id, true);
     }
@@ -57,32 +72,119 @@ class Assignment {
     return assignments;
   }
 
-  // Tạo bài tập mới
-  static async create({ title, description, thumbnail, total_score, created_by }) {
+  // =============================
+  // TẠO BÀI TẬP
+  // =============================
+  static async create({
+    title,
+    description,
+    thumbnail,
+    total_score,
+    created_by,
+    start_time,
+    end_time,
+    time_limit,
+    max_attempts,
+  }) {
     const res = await pool.query(
-      `INSERT INTO assignments (title, description, thumbnail, total_score, created_by)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO assignments
+       (title, description, thumbnail, total_score, created_by, start_time, end_time, time_limit, max_attempts)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
        RETURNING *`,
-      [title, description, thumbnail, total_score, created_by]
+      [
+        title,
+        description,
+        thumbnail,
+        total_score,
+        created_by,
+        start_time,
+        end_time,
+        time_limit,
+        max_attempts || 1,
+      ]
     );
+
     return res.rows[0];
   }
 
-  // Tạo câu hỏi kèm đáp án
-  static async createQuestionWithAnswers({ assignment_id, content, type, score, answers }) {
+  // =============================
+  // BẮT ĐẦU LÀM BÀI
+  // =============================
+  static async startAttempt({ assignment_id, user_id }) {
+    // Lấy assignment
+    const assignmentRes = await pool.query(
+      `SELECT start_time, end_time, max_attempts
+       FROM assignments
+       WHERE id = $1`,
+      [assignment_id]
+    );
+
+    const assignment = assignmentRes.rows[0];
+    if (!assignment) throw new Error("Không tìm thấy bài tập");
+
+    const now = new Date();
+
+    // Check mở bài
+    if (assignment.start_time && now < assignment.start_time) {
+      throw new Error("Chưa tới thời gian làm bài");
+    }
+
+    // Check hết hạn
+    if (assignment.end_time && now > assignment.end_time) {
+      throw new Error("Bài tập đã hết hạn");
+    }
+
+    // Check số lần làm
+    const countRes = await pool.query(
+      `SELECT COUNT(*)
+       FROM assignment_attempts
+       WHERE assignment_id = $1 AND student_id = $2`,
+      [assignment_id, user_id]
+    );
+
+    const attemptCount = Number(countRes.rows[0].count);
+
+    if (attemptCount >= assignment.max_attempts) {
+      throw new Error("Bạn đã hết số lần làm bài");
+    }
+
+    const attempt_number = attemptCount + 1;
+
+    // Tạo attempt mới
+    const attemptRes = await pool.query(
+      `INSERT INTO assignment_attempts
+       (assignment_id, student_id, attempt_number)
+       VALUES ($1,$2,$3)
+       RETURNING *`,
+      [assignment_id, user_id, attempt_number]
+    );
+
+    return attemptRes.rows[0];
+  }
+
+  // =============================
+  // TẠO CÂU HỎI + ĐÁP ÁN
+  // =============================
+  static async createQuestionWithAnswers({
+    assignment_id,
+    content,
+    type,
+    score,
+    answers,
+  }) {
     const questionRes = await pool.query(
       `INSERT INTO questions (assignment_id, content, type, score)
-       VALUES ($1, $2, $3, $4)
+       VALUES ($1,$2,$3,$4)
        RETURNING *`,
       [assignment_id, content, type, score]
     );
+
     const question = questionRes.rows[0];
 
-    // Tạo đáp án
     for (let ans of answers) {
       await pool.query(
         `INSERT INTO answers (question_id, content, is_correct)
-         VALUES ($1, $2, $3)`,
+         VALUES ($1,$2,$3)`,
         [question.id, ans.content, ans.is_correct || false]
       );
     }
@@ -90,22 +192,22 @@ class Assignment {
     return question;
   }
 
-  // Lấy câu hỏi kèm tất cả đáp án, có thể giữ hoặc không giữ is_correct
+  // =============================
+  // LẤY CÂU HỎI + ĐÁP ÁN
+  // =============================
   static async getQuestionsWithAllAnswers(assignmentId, includeCorrect) {
     const questionsRes = await pool.query(
       `SELECT * FROM questions WHERE assignment_id = $1 ORDER BY id`,
       [assignmentId]
     );
+
     const questions = questionsRes.rows;
 
-    // Lấy đáp án cho từng câu hỏi
     for (let q of questions) {
-      let query = 'SELECT id, content';
-      // Nếu includeCorrect thì thêm is_correct vào query
-      if (includeCorrect) query += ', is_correct';
-      query += ' FROM answers WHERE question_id = $1 ORDER BY id';
+      let query = "SELECT id, content";
+      if (includeCorrect) query += ", is_correct";
+      query += " FROM answers WHERE question_id = $1 ORDER BY id";
 
-      // Lấy đáp án
       const answersRes = await pool.query(query, [q.id]);
       q.answers = answersRes.rows;
     }
@@ -113,77 +215,116 @@ class Assignment {
     return questions;
   }
 
-  // Nộp bài tập
+  // =============================
+  // NỘP BÀI
+  // =============================
   static async submitAssignment({ assignment_id, user_id, answers_json }) {
-    // answers_json: stringified array
-    const answers = JSON.parse(answers_json); // [{ question_id, answer_id: [..] }]
+    const answers = JSON.parse(answers_json);
 
-    // 1️⃣ Tính attempt_number
-    const attemptCountRes = await pool.query(
-      `SELECT COUNT(*) FROM assignment_attempts WHERE assignment_id = $1 AND student_id = $2`,
+    // 1️⃣ Lấy assignment
+    const assignmentRes = await pool.query(
+      `SELECT start_time, end_time, time_limit
+       FROM assignments
+       WHERE id = $1`,
+      [assignment_id]
+    );
+
+    const assignment = assignmentRes.rows[0];
+    if (!assignment) throw new Error("Không tìm thấy bài tập");
+
+    const now = new Date();
+
+    // Check hết hạn
+    if (assignment.end_time && now > assignment.end_time) {
+      throw new Error("Đã hết hạn nộp bài");
+    }
+
+    // 2️⃣ Lấy attempt mới nhất
+    const attemptRes = await pool.query(
+      `SELECT id, started_at, is_submitted
+       FROM assignment_attempts
+       WHERE assignment_id = $1 AND student_id = $2
+       ORDER BY attempt_number DESC
+       LIMIT 1`,
       [assignment_id, user_id]
     );
 
-    const attempt_number = parseInt(attemptCountRes.rows[0].count) + 1;
+    const lastAttempt = attemptRes.rows[0];
+    if (!lastAttempt) throw new Error("Bạn chưa bắt đầu làm bài");
 
-    // Biến lưu điểm tổng
+    if (lastAttempt.is_submitted) {
+      throw new Error("Attempt này đã được nộp");
+    }
+
+    // 3️⃣ Check hết giờ làm
+    if (assignment.time_limit) {
+      const startedAt = new Date(lastAttempt.started_at);
+      const diffMinutes = (now - startedAt) / 60000;
+
+      if (diffMinutes > assignment.time_limit) {
+        throw new Error("Đã hết thời gian làm bài");
+      }
+    }
+
+    // 4️⃣ Tính điểm
     let totalScore = 0;
+    const questions = await this.getQuestionsWithAllAnswers(
+      assignment_id,
+      true
+    );
 
-    // 2️⃣ Lấy câu hỏi + đáp án đúng
-    const questions = await this.getQuestionsWithAllAnswers(assignment_id, true);
-
-    // 3️⃣ So sánh câu trả lời và tính điểm
     for (let question of questions) {
-      // Tìm câu trả lời của user cho câu hỏi này
-      const userAnswerObj = answers.find(a => a.question_id === question.id);
-      // Lấy mảng answer_id của user
-      const userAnswerIds = (userAnswerObj?.answer_id || []).map(Number)
-      // Lấy mảng answer_id đúng
-      const correctAnswerIds = question.answers
-        .filter(a => a.is_correct)
-        .map(a => Number(a.id))
+      const userAnswerObj = answers.find(
+        (a) => a.question_id === question.id
+      );
 
-      // So sánh
-      let isCorrect = false
-      // Kiểu single hoặc multiple
+      const userAnswerIds = (userAnswerObj?.answer_id || []).map(Number);
+
+      const correctAnswerIds = question.answers
+        .filter((a) => a.is_correct)
+        .map((a) => Number(a.id));
+
+      let isCorrect = false;
+
       if (question.type === "single") {
-        // single: đúng nếu trùng 1 đáp án đúng
         isCorrect =
           userAnswerIds.length === 1 &&
           correctAnswerIds.length === 1 &&
-          userAnswerIds[0] === correctAnswerIds[0]
+          userAnswerIds[0] === correctAnswerIds[0];
       } else {
-        // multiple: đúng nếu trùng tất cả đáp án đúng
         isCorrect =
           userAnswerIds.length === correctAnswerIds.length &&
-          userAnswerIds.every(id => correctAnswerIds.includes(id))
-      }
-      // Cộng điểm nếu đúng
-      if (isCorrect) {
-        // cộng điểm câu hỏi vào tổng điểm
-        totalScore += Number(question.score)
+          userAnswerIds.every((id) => correctAnswerIds.includes(id));
       }
 
+      if (isCorrect) {
+        totalScore += Number(question.score);
+      }
     }
 
-    // 4️⃣ Lưu attempt
-    const attemptRes = await pool.query(
-      `INSERT INTO assignment_attempts (assignment_id, student_id, attempt_number, score)
-     VALUES ($1, $2, $3, $4)
-     RETURNING *`,
-      [assignment_id, user_id, attempt_number, totalScore]
+    // 5️⃣ UPDATE attempt
+    const updateRes = await pool.query(
+      `UPDATE assignment_attempts
+       SET score = $1,
+           submitted_at = NOW(),
+           is_submitted = true
+       WHERE id = $2
+       RETURNING *`,
+      [totalScore, lastAttempt.id]
     );
-    const attempt = attemptRes.rows[0];
 
-    // 5️⃣ Lưu câu trả lời của học sinh
+    const attempt = updateRes.rows[0];
+
+    // 6️⃣ Lưu câu trả lời
     for (let ans of answers) {
-      // ans.answer_id có thể là single hoặc array
-      const answerIds = Array.isArray(ans.answer_id) ? ans.answer_id : [ans.answer_id];
+      const answerIds = Array.isArray(ans.answer_id)
+        ? ans.answer_id
+        : [ans.answer_id];
+
       for (let answerId of answerIds) {
-        // Lưu vào bảng student_answers
         await pool.query(
           `INSERT INTO student_answers (attempt_id, question_id, answer_id)
-         VALUES ($1, $2, $3)`,
+           VALUES ($1,$2,$3)`,
           [attempt.id, ans.question_id, answerId]
         );
       }
@@ -192,148 +333,174 @@ class Assignment {
     return attempt;
   }
 
-
-  // Lấy tất cả bài nộp của học sinh
+  // =============================
+  // LẤY BÀI ĐÃ NỘP CỦA HỌC SINH
+  // =============================
   static async getUserSubmissions(userId) {
     const res = await pool.query(
-      `SELECT 
+      `SELECT
         aa.id,
         aa.assignment_id,
         aa.student_id,
         aa.score,
         aa.attempt_number,
         aa.created_at,
-
         a.title,
         a.description,
         a.total_score,
         a.thumbnail
-     FROM assignment_attempts aa
-     JOIN assignments a ON aa.assignment_id = a.id
-     WHERE aa.student_id = $1
-     ORDER BY aa.created_at DESC`,
+       FROM assignment_attempts aa
+       JOIN assignments a ON aa.assignment_id = a.id
+       WHERE aa.student_id = $1
+       ORDER BY aa.created_at DESC`,
       [userId]
-    )
+    );
 
-    return res.rows
+    return res.rows;
   }
 
-
-  // Lấy tất cả bài nộp cho một bài tập
+  // =============================
+  // LẤY TẤT CẢ BÀI NỘP CỦA 1 BÀI
+  // =============================
   static async getSubmissionsByAssignment(assignmentId) {
     const res = await pool.query(
-      `SELECT aa.*, u.name AS student_name
+      `SELECT
+        aa.*,
+        u.name AS student_name
        FROM assignment_attempts aa
        LEFT JOIN users u ON aa.student_id = u.id
        WHERE aa.assignment_id = $1
        ORDER BY aa.created_at DESC`,
       [assignmentId]
     );
+
     return res.rows;
   }
 
-  // Lấy 1 attempt cụ thể
-  static async getSingleUserAttempt({ assignmentId, userId, attemptId }) {
+  // =============================
+  // LẤY 1 ATTEMPT CỤ THỂ
+  // =============================
+  static async getSingleUserAttempt({
+    assignmentId,
+    userId,
+    attemptId,
+  }) {
     const attemptRes = await pool.query(
-      `SELECT * FROM assignment_attempts
-     WHERE id = $1 AND assignment_id = $2 AND student_id = $3`,
+      `SELECT *
+       FROM assignment_attempts
+       WHERE id = $1 AND assignment_id = $2 AND student_id = $3`,
       [attemptId, assignmentId, userId]
-    )
-    const attempt = attemptRes.rows[0]
-    if (!attempt) return null
+    );
 
-    // Lấy câu hỏi + đáp án có is_correct
-    const questions = await this.getQuestionsWithAllAnswers(assignmentId, true)
+    const attempt = attemptRes.rows[0];
+    if (!attempt) return null;
 
-    // Lấy câu trả lời học sinh
+    const questions = await this.getQuestionsWithAllAnswers(
+      assignmentId,
+      true
+    );
+
     const studentAnswersRes = await pool.query(
-      `SELECT question_id, answer_id FROM student_answers WHERE attempt_id = $1`,
+      `SELECT question_id, answer_id
+       FROM student_answers
+       WHERE attempt_id = $1`,
       [attempt.id]
-    )
-    const studentAnswers = studentAnswersRes.rows
+    );
 
-    attempt.questions = questions.map(q => {
+    const studentAnswers = studentAnswersRes.rows;
+
+    attempt.questions = questions.map((q) => {
       const userAnsForQ = studentAnswers
-        .filter(sa => sa.question_id === q.id)
-        .map(sa => sa.answer_id)
+        .filter((sa) => sa.question_id === q.id)
+        .map((sa) => sa.answer_id);
 
-      const correctAnswerIds = q.answers.filter(a => a.is_correct).map(a => a.id)
+      const correctAnswerIds = q.answers
+        .filter((a) => a.is_correct)
+        .map((a) => a.id);
 
-      let isCorrect = false
+      let isCorrect = false;
+
       if (q.type === "single") {
         isCorrect =
           userAnsForQ.length === 1 &&
           correctAnswerIds.length === 1 &&
-          userAnsForQ[0] === correctAnswerIds[0]
+          userAnsForQ[0] === correctAnswerIds[0];
       } else {
         isCorrect =
           userAnsForQ.length === correctAnswerIds.length &&
-          userAnsForQ.every(id => correctAnswerIds.includes(id))
+          userAnsForQ.every((id) => correctAnswerIds.includes(id));
       }
 
       return {
         ...q,
         user_answer_ids: userAnsForQ,
         isCorrect,
-      }
-    })
+      };
+    });
 
-    // Gán thông tin assignment
-    attempt.assignment_title = questions[0]?.assignment_title || "Bài tập"
-    attempt.total_score = questions.reduce((acc, q) => acc + Number(q.score), 0)
+    attempt.assignment_title = "Bài tập";
+    attempt.total_score = questions.reduce(
+      (acc, q) => acc + Number(q.score),
+      0
+    );
 
-    return attempt
+    return attempt;
   }
 
-  // Xoá bài tập (PostgreSQL + transaction)
+  // =============================
+  // XOÁ BÀI TẬP
+  // =============================
   static async deleteById(id) {
-    const client = await pool.connect()
+    const client = await pool.connect();
 
     try {
-      await client.query("BEGIN")
+      await client.query("BEGIN");
 
       await client.query(
         `DELETE FROM student_answers
-       WHERE attempt_id IN (
-         SELECT id FROM assignment_attempts WHERE assignment_id = $1
-       )`,
+         WHERE attempt_id IN (
+           SELECT id FROM assignment_attempts
+           WHERE assignment_id = $1
+         )`,
         [id]
-      )
+      );
 
       await client.query(
-        `DELETE FROM assignment_attempts WHERE assignment_id = $1`,
+        `DELETE FROM assignment_attempts
+         WHERE assignment_id = $1`,
         [id]
-      )
+      );
 
       await client.query(
         `DELETE FROM answers
-       WHERE question_id IN (
-         SELECT id FROM questions WHERE assignment_id = $1
-       )`,
+         WHERE question_id IN (
+           SELECT id FROM questions
+           WHERE assignment_id = $1
+         )`,
         [id]
-      )
+      );
 
       await client.query(
-        `DELETE FROM questions WHERE assignment_id = $1`,
+        `DELETE FROM questions
+         WHERE assignment_id = $1`,
         [id]
-      )
+      );
 
       const result = await client.query(
         `DELETE FROM assignments WHERE id = $1`,
         [id]
-      )
+      );
 
-      await client.query("COMMIT")
-      return result.rowCount // để controller biết có xóa thật hay không
+      await client.query("COMMIT");
+
+      return result.rowCount;
     } catch (err) {
-      await client.query("ROLLBACK")
-      throw err
+      await client.query("ROLLBACK");
+      throw err;
     } finally {
-      client.release()
+      client.release();
     }
   }
-
-
 }
 
 export default Assignment;

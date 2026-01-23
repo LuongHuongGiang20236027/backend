@@ -5,6 +5,7 @@ import {
   getAssignmentById,
   getMyAssignments,
   createAssignment,
+  startAssignment,
   submitAssignment,
   getMySubmissions,
   getAssignmentSubmissions,
@@ -35,6 +36,8 @@ router.post(
   upload.single("thumbnail"), // xử lý thumbnail
   createAssignment
 )
+// Bắt đầu làm bài tập
+router.post("/start", authMiddleware, startAssignment);
 // Nộp bài tập
 router.post("/submit", authMiddleware, submitAssignment)
 router.get("/:id/result/:attemptId", authMiddleware, getUserAttemptResult)

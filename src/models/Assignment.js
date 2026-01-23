@@ -387,8 +387,8 @@ class Assignment {
   }) {
     const attemptRes = await pool.query(
       `SELECT *
-       FROM assignment_attempts
-       WHERE id = $1 AND assignment_id = $2 AND student_id = $3`,
+     FROM assignment_attempts
+     WHERE id = $1 AND assignment_id = $2 AND student_id = $3`,
       [attemptId, assignmentId, userId]
     );
 
@@ -402,8 +402,8 @@ class Assignment {
 
     const studentAnswersRes = await pool.query(
       `SELECT question_id, answer_id
-       FROM student_answers
-       WHERE attempt_id = $1`,
+     FROM student_answers
+     WHERE attempt_id = $1`,
       [attempt.id]
     );
 
@@ -439,18 +439,29 @@ class Assignment {
     });
 
     attempt.assignment_title = "Bài tập";
+
     attempt.total_score = questions.reduce(
       (acc, q) => acc + Number(q.score),
       0
     );
 
-    // 🔹 Tính thời gian làm (phút)
+    // 🔹 TÍNH THỜI GIAN CHUẨN PHÚT + GIÂY
     if (attempt.started_at && attempt.submitted_at) {
       const start = new Date(attempt.started_at);
       const end = new Date(attempt.submitted_at);
-      attempt.duration_minutes = Math.ceil((end - start) / 60000);
+
+      const diffMs = end - start;
+      const totalSeconds = Math.floor(diffMs / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+
+      attempt.duration = {
+        minutes,
+        seconds,
+        total_seconds: totalSeconds,
+      };
     } else {
-      attempt.duration_minutes = null;
+      attempt.duration = null;
     }
 
     return attempt;

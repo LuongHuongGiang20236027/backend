@@ -444,6 +444,15 @@ class Assignment {
       0
     );
 
+    // 🔹 Tính thời gian làm (phút)
+    if (attempt.started_at && attempt.submitted_at) {
+      const start = new Date(attempt.started_at);
+      const end = new Date(attempt.submitted_at);
+      attempt.duration_minutes = Math.ceil((end - start) / 60000);
+    } else {
+      attempt.duration_minutes = null;
+    }
+
     return attempt;
   }
 

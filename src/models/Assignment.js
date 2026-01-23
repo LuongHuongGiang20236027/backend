@@ -218,7 +218,7 @@ class Assignment {
   // =============================
   // NỘP BÀI
   // =============================
-  static async submitAssignment({ assignment_id, user_id, answers_json }) {
+  static async submitAssignment({ assignment_id, user_id, answers_json, submit_reason = "manual" }) {
     const answers = JSON.parse(answers_json);
 
     // 1️⃣ Lấy assignment
@@ -235,9 +235,14 @@ class Assignment {
     const now = new Date();
 
     // Check hết hạn
-    if (assignment.end_time && now > assignment.end_time) {
+    if (
+      assignment.end_time &&
+      now > assignment.end_time &&
+      submit_reason === "manual"
+    ) {
       throw new Error("Đã hết hạn nộp bài");
     }
+
 
     // 2️⃣ Lấy attempt mới nhất
     const attemptRes = await pool.query(
@@ -261,9 +266,13 @@ class Assignment {
       const startedAt = new Date(lastAttempt.started_at);
       const diffMinutes = (now - startedAt) / 60000;
 
-      if (diffMinutes > assignment.time_limit) {
+      if (
+        diffMinutes > assignment.time_limit &&
+        submit_reason === "manual"
+      ) {
         throw new Error("Đã hết thời gian làm bài");
       }
+
     }
 
     // 4️⃣ Tính điểm
@@ -305,13 +314,15 @@ class Assignment {
     // 5️⃣ UPDATE attempt
     const updateRes = await pool.query(
       `UPDATE assignment_attempts
-       SET score = $1,
-           submitted_at = NOW(),
-           is_submitted = true
-       WHERE id = $2
-       RETURNING *`,
-      [totalScore, lastAttempt.id]
+   SET score = $1,
+       submitted_at = NOW(),
+       is_submitted = true,
+       submit_reason = $3
+   WHERE id = $2
+   RETURNING *`,
+      [totalScore, lastAttempt.id, submit_reason]
     );
+
 
     const attempt = updateRes.rows[0];
 

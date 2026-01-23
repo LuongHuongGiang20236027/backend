@@ -141,7 +141,8 @@ export const startAssignment = async (req, res) => {
 export const submitAssignment = async (req, res) => {
   try {
     const user_id = req.userId;
-    const { assignment_id, answers } = req.body;
+    const { assignment_id, answers, submit_reason } = req.body;
+
 
     if (!assignment_id || !answers) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -151,7 +152,9 @@ export const submitAssignment = async (req, res) => {
       assignment_id: Number(assignment_id),
       user_id: Number(user_id),
       answers_json: JSON.stringify(answers),
+      submit_reason: submit_reason || "manual"
     });
+
 
     return res.json({
       submission: attempt,

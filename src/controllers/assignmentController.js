@@ -152,9 +152,7 @@ export const submitAssignment = async (req, res) => {
       assignment_id: Number(assignment_id),
       user_id: Number(user_id),
       answers_json: JSON.stringify(answers),
-      submit_reason: submit_reason || "manual"
     });
-
 
     return res.json({
       submission: attempt,

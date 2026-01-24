@@ -2,10 +2,7 @@ import User from "../models/User.js";
 import bcrypt from "bcrypt";
 import { signToken } from "../config/jwt.js";
 
-
-// -------------------------
-// REGISTER
-// -------------------------
+//Đăng Ký
 export const register = async (req, res) => {
   try {
     const { email, password, confirmPassword, name, role, gender, birth_date } = req.body;
@@ -56,9 +53,7 @@ export const register = async (req, res) => {
   }
 };
 
-// -------------------------
-// LOGIN
-// -------------------------
+//Đăng Nhập
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -97,9 +92,7 @@ export const login = async (req, res) => {
   }
 };
 
-// -------------------------
-// GET CURRENT USER
-// -------------------------
+// Lấy thông tin user hiện tại
 export const getCurrentUser = async (req, res) => {
   try {
     const user = await User.findById(req.userId);
@@ -116,9 +109,7 @@ export const getCurrentUser = async (req, res) => {
   }
 };
 
-// -------------------------
-// LOGOUT (JWT = stateless)
-// -------------------------
+// Đăng xuất (chỉ client xóa token)
 export const logout = (req, res) => {
   res.json({ success: true, message: "Logged out (client should delete token)" });
 };

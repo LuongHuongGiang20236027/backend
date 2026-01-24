@@ -1,9 +1,7 @@
 import { pool } from "../config/database.js";
 
 class Assignment {
-  // =============================
-  // LẤY TẤT CẢ BÀI TẬP
-  // =============================
+  //Lấy tất cả bài tập
   static async findAll() {
     const res = await pool.query(
       `SELECT 
@@ -23,9 +21,7 @@ class Assignment {
     return assignments;
   }
 
-  // =============================
-  // LẤY BÀI TẬP THEO ID
-  // =============================
+  //Lấy bài tập theo id
   static async findById(id) {
     const res = await pool.query(
       `SELECT 
@@ -48,9 +44,7 @@ class Assignment {
     return assignment;
   }
 
-  // =============================
-  // LẤY BÀI TẬP CỦA GIÁO VIÊN
-  // =============================
+  //Lấy bài tập theo người tạo
   static async findByCreator(userId) {
     const res = await pool.query(
       `SELECT 
@@ -72,9 +66,7 @@ class Assignment {
     return assignments;
   }
 
-  // =============================
-  // TẠO BÀI TẬP
-  // =============================
+  //Tạo bài tập mới
   static async create({
     title,
     description,
@@ -107,9 +99,7 @@ class Assignment {
     return res.rows[0];
   }
 
-  // =============================
-  // BẮT ĐẦU LÀM BÀI
-  // =============================
+  //Bắt đầu làm bài tập
   static async startAttempt({ assignment_id, user_id }) {
     // Lấy assignment
     const assignmentRes = await pool.query(
@@ -162,9 +152,7 @@ class Assignment {
     return attemptRes.rows[0];
   }
 
-  // =============================
-  // TẠO CÂU HỎI + ĐÁP ÁN
-  // =============================
+  //Tạo câu hỏi kèm đáp án
   static async createQuestionWithAnswers({
     assignment_id,
     content,
@@ -192,9 +180,7 @@ class Assignment {
     return question;
   }
 
-  // =============================
-  // LẤY CÂU HỎI + ĐÁP ÁN
-  // =============================
+  // Lấy câu hỏi kèm đáp án
   static async getQuestionsWithAllAnswers(assignmentId, includeCorrect) {
     const questionsRes = await pool.query(
       `SELECT * FROM questions WHERE assignment_id = $1 ORDER BY id`,
@@ -215,9 +201,7 @@ class Assignment {
     return questions;
   }
 
-  // =============================
-  // NỘP BÀI
-  // =============================
+  //Nộp bài tập
   static async submitAssignment({ assignment_id, user_id, answers_json }) {
     const answers = JSON.parse(answers_json);
 
@@ -333,9 +317,7 @@ class Assignment {
     return attempt;
   }
 
-  // =============================
-  // LẤY BÀI ĐÃ NỘP CỦA HỌC SINH
-  // =============================
+  //Bài tập đã nộp của học sinh
   static async getUserSubmissions(userId) {
     const res = await pool.query(
       `SELECT
@@ -359,9 +341,7 @@ class Assignment {
     return res.rows;
   }
 
-  // =============================
-  // LẤY TẤT CẢ BÀI NỘP CỦA 1 BÀI
-  // =============================
+  //Lấy danh sách nộp bài theo bài tập
   static async getSubmissionsByAssignment(assignmentId) {
     const res = await pool.query(
       `SELECT
@@ -377,9 +357,7 @@ class Assignment {
     return res.rows;
   }
 
-  // =============================
-  // LẤY 1 ATTEMPT CỤ THỂ
-  // =============================
+  //Lấy chi tiết một lần làm bài của học sinh
   static async getSingleUserAttempt({
     assignmentId,
     userId,
@@ -467,9 +445,7 @@ class Assignment {
     return attempt;
   }
 
-  // =============================
-  // XOÁ BÀI TẬP
-  // =============================
+  //Xóa bài tập theo id
   static async deleteById(id) {
     const client = await pool.connect();
 
@@ -521,6 +497,40 @@ class Assignment {
       client.release();
     }
   }
+
+  //Tìm kiếm bài tập
+  static async search(q) {
+    const result = await pool.query(
+      `
+    SELECT a.*, u.name AS author_name,
+      similarity(
+        unaccent(lower(
+          coalesce(a.title,'') || ' ' ||
+          coalesce(a.description,'') || ' ' ||
+          coalesce(u.name,'')
+        )),
+        unaccent(lower($1))
+      ) AS score
+    FROM assignments a
+    LEFT JOIN users u ON a.created_by = u.id
+    WHERE
+      similarity(
+        unaccent(lower(
+          coalesce(a.title,'') || ' ' ||
+          coalesce(a.description,'') || ' ' ||
+          coalesce(u.name,'')
+        )),
+        unaccent(lower($1))
+      ) > 0.05
+    ORDER BY score DESC, a.created_at DESC
+    LIMIT 50
+    `,
+      [q]
+    )
+
+    return result.rows
+  }
+
 }
 
 export default Assignment;

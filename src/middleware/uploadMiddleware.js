@@ -1,23 +1,17 @@
 import multer from "multer"
 import { v2 as cloudinary } from "cloudinary"
 
-// =====================
-// Cloudinary config
-// =====================
+//Cloudinary config
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
 })
 
-// =====================
-// Multer memory storage
-// =====================
+//Multer storage
 const storage = multer.memoryStorage()
 
-// =====================
 // File filter
-// =====================
 const fileFilter = (req, file, cb) => {
     // PDF cho tài liệu
     if (file.fieldname === "file") {
@@ -33,9 +27,7 @@ const fileFilter = (req, file, cb) => {
     else cb(new Error("Field upload không hợp lệ"), false)
 }
 
-// =====================
-// Upload helper
-// =====================
+// Upload lên Cloudinary
 export const uploadToCloudinary = (buffer, folder, resourceType = "image") => {
     return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
@@ -53,7 +45,5 @@ export const uploadToCloudinary = (buffer, folder, resourceType = "image") => {
     })
 }
 
-// =====================
-// Multer export
-// =====================
+
 export const upload = multer({ storage, fileFilter })

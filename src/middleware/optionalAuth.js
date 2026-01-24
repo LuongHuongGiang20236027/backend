@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken"
 
+// Middleware tùy chọn xác thực người dùng
 export const optionalAuth = (req, res, next) => {
     const authHeader = req.headers.authorization
 

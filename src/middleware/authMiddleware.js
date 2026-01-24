@@ -1,5 +1,6 @@
 import { verifyToken } from "../config/jwt.js";
 
+// Middleware xác thực người dùng
 export const authMiddleware = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;

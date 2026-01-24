@@ -1,9 +1,7 @@
 import Assignment from "../models/Assignment.js";
 import { uploadToCloudinary } from "../middleware/uploadMiddleware.js";
 
-// =============================
-// LẤY TẤT CẢ BÀI TẬP
-// =============================
+//Lấy Tất Cả Bài Tập
 export const getAllAssignments = async (req, res) => {
   try {
     const assignments = await Assignment.findAll();
@@ -12,11 +10,9 @@ export const getAllAssignments = async (req, res) => {
     console.error("Get assignments error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
-};
+}
 
-// =============================
-// LẤY BÀI TẬP THEO ID
-// =============================
+//Lấy Bài Tập Theo ID
 export const getAssignmentById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -31,11 +27,9 @@ export const getAssignmentById = async (req, res) => {
     console.error("Get assignment error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
-};
+}
 
-// =============================
-// LẤY BÀI TẬP CỦA GIÁO VIÊN
-// =============================
+//Lấy Danh Sách Bài Tập Của User Hiện Tại (Giáo viên)
 export const getMyAssignments = async (req, res) => {
   try {
     const assignments = await Assignment.findByCreator(req.userId);
@@ -44,11 +38,9 @@ export const getMyAssignments = async (req, res) => {
     console.error("Get my assignments error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
-};
+}
 
-// =============================
-// TẠO BÀI TẬP MỚI
-// =============================
+//Tạo Bài Tập
 export const createAssignment = async (req, res) => {
   try {
     let {
@@ -107,11 +99,9 @@ export const createAssignment = async (req, res) => {
     console.error("Create assignment error:", error);
     res.status(500).json({ error: error.message || "Internal server error" });
   }
-};
+}
 
-// =============================
-// BẮT ĐẦU LÀM BÀI
-// =============================
+//Bắt Đầu Bài Tập
 export const startAssignment = async (req, res) => {
   try {
     const user_id = req.userId;
@@ -133,11 +123,9 @@ export const startAssignment = async (req, res) => {
     console.error("Start assignment error:", error);
     res.status(400).json({ error: error.message });
   }
-};
+}
 
-// =============================
-// NỘP BÀI
-// =============================
+//Nộp Bài Tập
 export const submitAssignment = async (req, res) => {
   try {
     const user_id = req.userId;
@@ -167,11 +155,9 @@ export const submitAssignment = async (req, res) => {
       error: error.message || "Submit failed",
     });
   }
-};
+}
 
-// =============================
-// LẤY BÀI ĐÃ NỘP CỦA USER
-// =============================
+//Lấy Danh Sách Bài Làm Của User
 export const getMySubmissions = async (req, res) => {
   try {
     const submissions = await Assignment.getUserSubmissions(req.userId);
@@ -182,9 +168,7 @@ export const getMySubmissions = async (req, res) => {
   }
 };
 
-// =============================
-// LẤY TẤT CẢ BÀI NỘP CỦA 1 BÀI
-// =============================
+//Lấy Danh Sách Bài Làm Của 1 Bài Tập
 export const getAssignmentSubmissions = async (req, res) => {
   try {
     const { id } = req.params;
@@ -194,11 +178,9 @@ export const getAssignmentSubmissions = async (req, res) => {
     console.error("Get assignment submissions error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
-};
+}
 
-// =============================
-// LẤY KẾT QUẢ 1 ATTEMPT
-// =============================
+//Lấy Kết Quả Bài Làm Của User
 export const getUserAttemptResult = async (req, res) => {
   try {
     const { id: assignmentId, attemptId } = req.params;
@@ -225,11 +207,9 @@ export const getUserAttemptResult = async (req, res) => {
     console.error("Get user attempt result error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
-};
+}
 
-// =============================
-// XOÁ BÀI TẬP
-// =============================
+//Xóa Bài Tập
 export const deleteAssignment = async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -263,4 +243,22 @@ export const deleteAssignment = async (req, res) => {
     console.error("Delete assignment error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
-};
+}
+
+// 🔍 Tìm kiếm bài tập
+export const searchAssignments = async (req, res) => {
+  try {
+    const { q } = req.query
+
+    if (!q || !q.trim()) {
+      return res.json({ assignments: [] })
+    }
+
+    const assignments = await Assignment.search(q)
+    res.json({ assignments })
+  } catch (error) {
+    console.error("Search assignments error:", error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+

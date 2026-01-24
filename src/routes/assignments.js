@@ -10,7 +10,8 @@ import {
   getMySubmissions,
   getAssignmentSubmissions,
   getUserAttemptResult,
-  deleteAssignment
+  deleteAssignment,
+  searchAssignments
 } from "../controllers/assignmentController.js"
 
 // Middleware xác thực
@@ -25,6 +26,8 @@ router.get("/", getAllAssignments)
 router.get("/my-assignments", authMiddleware, getMyAssignments)
 // Lấy tất cả bài nộp của học sinh
 router.get("/my-submissions", authMiddleware, getMySubmissions)
+// Tìm kiếm bài tập
+router.get("/search", searchAssignments)
 // Lấy bài tập theo id
 router.get("/:id", getAssignmentById)
 // Lấy tất cả bài nộp cho một bài tập (giáo viên)

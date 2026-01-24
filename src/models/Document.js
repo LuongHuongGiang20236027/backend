@@ -115,19 +115,32 @@ class Document {
     return result.rows
   }
 
-  // Tìm kiếm tài liệu theo từ khoá// 🔍 Tìm kiếm tài liệu (không phân biệt hoa/thường + không cần gõ dấu)
+  // 🔍 Google-like fuzzy search (pg_trgm + unaccent)
   static async search(q) {
     const result = await pool.query(
       `
     SELECT d.*, u.name AS author_name,
-      (SELECT COUNT(*) FROM document_likes WHERE document_id = d.id) AS like_count
+      (SELECT COUNT(*) FROM document_likes WHERE document_id = d.id) AS like_count,
+      similarity(
+        unaccent(lower(
+          coalesce(d.title,'') || ' ' ||
+          coalesce(d.description,'') || ' ' ||
+          coalesce(u.name,'')
+        )),
+        unaccent(lower($1))
+      ) AS score
     FROM documents d
     LEFT JOIN users u ON d.created_by = u.id
     WHERE
-      unaccent(lower(coalesce(d.title, ''))) LIKE '%' || unaccent(lower($1)) || '%'
-      OR unaccent(lower(coalesce(d.description, ''))) LIKE '%' || unaccent(lower($1)) || '%'
-      OR unaccent(lower(coalesce(u.name, ''))) LIKE '%' || unaccent(lower($1)) || '%'
-    ORDER BY d.created_at DESC
+      similarity(
+        unaccent(lower(
+          coalesce(d.title,'') || ' ' ||
+          coalesce(d.description,'') || ' ' ||
+          coalesce(u.name,'')
+        )),
+        unaccent(lower($1))
+      ) > 0.05
+    ORDER BY score DESC, d.created_at DESC
     LIMIT 50
     `,
       [q]
@@ -135,7 +148,6 @@ class Document {
 
     return result.rows
   }
-
 
 }
 

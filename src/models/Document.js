@@ -115,7 +115,7 @@ class Document {
     return result.rows
   }
 
-  // 🔍 Tìm kiếm tài liệu (Google-like)
+  // Tìm kiếm tài liệu theo từ khoá// 🔍 Tìm kiếm tài liệu (không phân biệt hoa/thường + không cần gõ dấu)
   static async search(q) {
     const result = await pool.query(
       `
@@ -124,19 +124,17 @@ class Document {
     FROM documents d
     LEFT JOIN users u ON d.created_by = u.id
     WHERE
-      to_tsvector('simple',
-        coalesce(d.title,'') || ' ' ||
-        coalesce(d.description,'') || ' ' ||
-        coalesce(u.name,'')
-      ) @@ plainto_tsquery('simple', $1)
+      unaccent(lower(coalesce(d.title, ''))) LIKE '%' || unaccent(lower($1)) || '%'
+      OR unaccent(lower(coalesce(d.description, ''))) LIKE '%' || unaccent(lower($1)) || '%'
+      OR unaccent(lower(coalesce(u.name, ''))) LIKE '%' || unaccent(lower($1)) || '%'
     ORDER BY d.created_at DESC
+    LIMIT 50
     `,
       [q]
     )
 
     return result.rows
   }
-
 
 
 }

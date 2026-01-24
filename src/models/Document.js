@@ -115,6 +115,29 @@ class Document {
     return result.rows
   }
 
+  // 🔍 Tìm kiếm tài liệu (Google-like)
+  static async search(q) {
+    const result = await pool.query(
+      `
+    SELECT d.*, u.name AS author_name,
+      (SELECT COUNT(*) FROM document_likes WHERE document_id = d.id) AS like_count
+    FROM documents d
+    LEFT JOIN users u ON d.created_by = u.id
+    WHERE
+      to_tsvector('simple',
+        coalesce(d.title,'') || ' ' ||
+        coalesce(d.description,'') || ' ' ||
+        coalesce(u.name,'')
+      ) @@ plainto_tsquery('simple', $1)
+    ORDER BY d.created_at DESC
+    `,
+      [q]
+    )
+
+    return result.rows
+  }
+
+
 
 }
 

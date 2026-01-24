@@ -8,6 +8,7 @@ import {
   deleteDocument,
   toggleLike,
   downloadDocument,
+  searchDocuments,
 } from "../controllers/documentController.js"
 
 // Middleware xác thực
@@ -23,6 +24,8 @@ router.get("/", getAllDocuments)
 router.get("/my-documents", authMiddleware, getMyDocuments)
 // Lấy tài liệu đã thích của user
 router.get("/liked", authMiddleware, getLikedDocuments)
+// Tìm kiếm tài liệu
+router.get("/search", searchDocuments)
 // Lấy tài liệu theo id (có thể không đăng nhập)
 router.get("/:id", optionalAuth, getDocumentById)
 // Tạo tài liệu mới, chỉ giáo viên mới được tạo

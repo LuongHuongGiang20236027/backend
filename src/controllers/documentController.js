@@ -188,3 +188,21 @@ export const downloadDocument = async (req, res) => {
     return res.status(500).json({ message: "Download failed" })
   }
 }
+
+// 🔍 Tìm kiếm tài liệu
+export const searchDocuments = async (req, res) => {
+  try {
+    const { q } = req.query
+
+    if (!q || !q.trim()) {
+      return res.json({ documents: [] })
+    }
+
+    const documents = await Document.search(q)
+    res.json({ documents })
+  } catch (error) {
+    console.error("Search documents error:", error)
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+

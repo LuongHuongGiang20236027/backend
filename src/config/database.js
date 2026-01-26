@@ -12,8 +12,7 @@ const { Pool } = pg
 
 let pool
 
-// Nếu có DATABASE_URL → dùng cloud (Render)
-// Nếu không → dùng local
+// Cấu hình kết nối dựa trên biến môi trường
 if (process.env.DATABASE_URL) {
   pool = new Pool({
     connectionString: process.env.DATABASE_URL,

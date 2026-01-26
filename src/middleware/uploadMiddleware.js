@@ -13,10 +13,21 @@ const storage = multer.memoryStorage()
 
 // File filter
 const fileFilter = (req, file, cb) => {
-    // PDF cho tài liệu
+    // File tài liệu: PDF hoặc VIDEO
     if (file.fieldname === "file") {
-        if (file.mimetype === "application/pdf") cb(null, true)
-        else cb(new Error("Chỉ cho phép file PDF"), false)
+        const allowedDocs = [
+            "application/pdf",
+            "video/mp4",
+            "video/mkv",
+            "video/webm",
+            "video/quicktime" // .mov
+        ]
+
+        if (allowedDocs.includes(file.mimetype)) {
+            cb(null, true)
+        } else {
+            cb(new Error("Chỉ cho phép PDF hoặc VIDEO"), false)
+        }
     }
     // Ảnh cho avatar và thumbnail
     else if (["avatar", "thumbnail"].includes(file.fieldname)) {
@@ -26,6 +37,7 @@ const fileFilter = (req, file, cb) => {
     }
     else cb(new Error("Field upload không hợp lệ"), false)
 }
+
 
 // Upload lên Cloudinary
 export const uploadToCloudinary = (buffer, folder, resourceType = "image") => {
@@ -46,4 +58,16 @@ export const uploadToCloudinary = (buffer, folder, resourceType = "image") => {
 }
 
 
-export const upload = multer({ storage, fileFilter })
+export const upload = multer({
+    storage,
+    fileFilter,
+    limits: {
+        fileSize: 200 * 1024 * 1024 // 200MB
+    }
+})
+
+export const getResourceType = (mimetype) => {
+    if (mimetype.startsWith("video")) return "video"
+    return "raw" // PDF
+}
+

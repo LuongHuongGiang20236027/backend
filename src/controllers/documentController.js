@@ -3,7 +3,8 @@ import Document from "../models/Document.js"
 import path from "path";
 // Dùng fs.existsSync để kiểm tra file có tồn tại
 import fs from "fs";
-import { uploadToCloudinary } from "../middleware/uploadMiddleware.js"
+import { uploadToCloudinary, getResourceType } from "../middleware/uploadMiddleware.js"
+
 
 // Lấy tất cả tài liệu
 export const getAllDocuments = async (req, res) => {
@@ -76,11 +77,14 @@ export const createDocument = async (req, res) => {
     const file = req.files.file[0]
     const thumbnail = req.files.thumbnail?.[0]
 
-    // Upload PDF
+    // Xác định loại file (PDF hay VIDEO)
+    const resourceType = getResourceType(file.mimetype)
+
+    // Upload PDF hoặc VIDEO
     const fileUpload = await uploadToCloudinary(
       file.buffer,
       "documents",
-      "raw" // PDF
+      resourceType
     )
 
     // Upload thumbnail nếu có
